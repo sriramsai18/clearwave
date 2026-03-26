@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="8" fill="#0a0a0f"/>
+  <!-- Sound wave bars -->
+  <rect x="3" y="12" width="3" height="8" rx="1.5" fill="#7dd3fc"/>
+  <rect x="8" y="8" width="3" height="16" rx="1.5" fill="#7dd3fc"/>
+  <rect x="13" y="4" width="3" height="24" rx="1.5" fill="#7dd3fc"/>
+  <rect x="18" y="8" width="3" height="16" rx="1.5" fill="#7dd3fc"/>
+  <rect x="23" y="12" width="3" height="8" rx="1.5" fill="#7dd3fc"/>
+  <!-- Subtle glow dots at peaks -->
+  <circle cx="14.5" cy="4" r="1.5" fill="#fff" opacity="0.6"/>
+</svg>

@@ -1,0 +1,16 @@
+{
+  "short_name": "ClearWave",
+  "name": "ClearWave AI",
+  "description": "AI-powered audio enhancement, noise removal, transcription and translation.",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#0a0a0f",
+  "background_color": "#0a0a0f"
+}
