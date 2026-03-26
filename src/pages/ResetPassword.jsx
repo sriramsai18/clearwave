@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import "./Login.css"; // reuse same styling
 
-const API_BASE = process.env.REACT_APP_API || "http://localhost:5000";
+const API_BASE = "https://clearwave-backend.onrender.com"; 
 
 const ResetPassword = () => {
   const { token } = useParams();
