@@ -24,8 +24,6 @@ const formatTime = (iso) => {
     hour: "2-digit", minute: "2-digit",
   });
 };
-const initials = (name = "") =>
-  name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
 
 const formatSilence = (secs) => {
   const s = parseFloat(secs) || 0;
@@ -124,12 +122,7 @@ const Dashboard = () => {
     silencesSaved: uploads.reduce((s, u) => s + (u.stats?.silences_removed_sec || 0), 0),
   }), [uploads, total]);
 
-  const handleLogout = () => {
-    if (!window.confirm("Log out of ClearWave?")) return;
-    localStorage.removeItem("user");
-    navigate("/");
-  };
-
+  
   const selectItem = (item) => { setSelected(item); setActiveTab("transcript"); };
 
   const handleDelete = async (e, id) => {
