@@ -292,8 +292,22 @@ function AudioStudio() {
           <div className="results-hero">
             <div className="results-hero-label">Enhanced Audio</div>
             {enhancedAudio && enhancedAudio !== "error" ? (
-              <>
-                <audio controls src={enhancedAudio} className="results-audio-player" />
+        <audio 
+          controls 
+          src={enhancedAudio} 
+          className="results-audio-player"
+          preload="metadata"
+          onError={(e) => {
+          console.error('Audio failed to load:', enhancedAudio, e.target.error);
+          // Fallback message
+            e.currentTarget.nextElementSibling.style.display = 'block';
+            e.currentTarget.style.display = 'none';
+            }}
+          onLoadedMetadata={() => console.log('Audio loaded successfully:', enhancedAudio)}
+        />
+        ) : (
+      <p className="result-empty">Audio enhancement not available — check console for SSE data.enhancedAudio</p>
+      )}
 
                 {/* Action row: Download + Share */}
                 <div className="results-hero-actions">
