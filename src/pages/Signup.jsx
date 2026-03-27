@@ -168,20 +168,22 @@ const Signup = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            <div className="terms-row">
-              <input
-                type="checkbox"
-                id="accept-terms-signup"
-                checked={accepted}
-                onChange={(e) => setAccepted(e.target.checked)}
-              />
-              <label htmlFor="accept-terms-signup">
-                I accept the{" "}
-                <Link to="/terms" target="_blank">Terms & Conditions</Link>
-              </label>
-            </div>
-            <div className="user-guide-row">
-              <Link to="/user-guide" target="_blank">📖 User Guide</Link>
+            <div className="terms-guide-row">
+              <div className="terms-row">
+                <input
+                  type="checkbox"
+                  id="accept-terms-signup"
+                  checked={accepted}
+                  onChange={(e) => setAccepted(e.target.checked)}
+                />
+                <label htmlFor="accept-terms-signup">
+                  I accept the{" "}
+                  <Link to="/terms">Terms & Conditions</Link>
+                </label>
+              </div>
+              <div className="user-guide-row">
+                <Link to="/user-guide">📖 User Guide</Link>
+              </div>
             </div>
             {error && <p style={{ color: "red", margin: "8px 0" }}>{error}</p>}
             <button
