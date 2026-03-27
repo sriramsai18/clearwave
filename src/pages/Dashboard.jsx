@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   FaMicrophone, FaTrash, FaDownload, FaSearch,
@@ -10,6 +10,16 @@ import "./Dashboard.css";
 
 const API_BASE = process.env.REACT_APP_API || "http://localhost:5000";
 const PAGE_SIZE = 20;
+
+
+const HIDDEN_STAT_KEYS = [
+  "noise_method",
+  "transcription_method",
+  "translation_method",
+  "noise_reduction",
+  "denoiser",
+  "denoised",
+];
 
 // ── Helpers ──────────────────────────────────────────────────────────
 const formatDate = (iso) => {
@@ -45,17 +55,37 @@ const Toast = ({ msg, type, onClose }) => {
   );
 };
 
+// ── Confirm Dialog ────────────────────────────────────────────────────
+const ConfirmDialog = ({ message, onConfirm, onCancel }) => (
+  <div className="dash-confirm-overlay" onClick={onCancel}>
+    <div className="dash-confirm-box" onClick={(e) => e.stopPropagation()}>
+      <div className="dash-confirm-icon">
+        <FaTrash />
+      </div>
+      <p className="dash-confirm-msg">{message}</p>
+      <div className="dash-confirm-actions">
+        <button className="dash-confirm-cancel" onClick={onCancel}>Cancel</button>
+        <button className="dash-confirm-delete" onClick={onConfirm}>Delete</button>
+      </div>
+    </div>
+  </div>
+);
+
 // ── Component ─────────────────────────────────────────────────────────
 const Dashboard = () => {
   const navigate = useNavigate();
 
-  let user = null;
-  try {
-    const stored = localStorage.getItem("user");
-    if (stored && stored !== "undefined") user = JSON.parse(stored);
-  } catch {
-    localStorage.removeItem("user");
+  // FIX: compute user once with a ref so it doesn't change on every render
+  const userRef = useRef(null);
+  if (userRef.current === null) {
+    try {
+      const stored = localStorage.getItem("user");
+      if (stored && stored !== "undefined") userRef.current = JSON.parse(stored);
+    } catch {
+      localStorage.removeItem("user");
+    }
   }
+  const user = userRef.current;
 
   // Theme — synced with Home.jsx
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
@@ -65,7 +95,10 @@ const Dashboard = () => {
     localStorage.setItem("theme", t);
   };
 
-  useEffect(() => { if (!user) navigate("/login"); }, [user, navigate]);
+  // FIX: use a stable ref for navigate so effect doesn't re-run
+  const navigateRef = useRef(navigate);
+  useEffect(() => { navigateRef.current = navigate; }, [navigate]);
+  useEffect(() => { if (!user) navigateRef.current("/login"); }, [user]);
 
   const [uploads, setUploads]         = useState([]);
   const [total, setTotal]             = useState(0);
@@ -78,15 +111,19 @@ const Dashboard = () => {
   const [search, setSearch]           = useState("");
   const [deleting, setDeleting]       = useState(null);
   const [toast, setToast]             = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState(null); // { id, e }
 
   const showToast = useCallback((msg, type = "success") => {
     setToast({ msg, type });
   }, []);
 
+  // FIX: stable userId to avoid fetchPage recreation on every render
+  const userId = user?._id;
+
   const fetchPage = useCallback((currentSkip, replace = false) => {
-    if (!user?._id) return;
+    if (!userId) return;
     replace ? setLoading(true) : setLoadingMore(true);
-    fetch(`${API_BASE}/my-uploads/${user._id}?limit=${PAGE_SIZE}&skip=${currentSkip}`)
+    fetch(`${API_BASE}/my-uploads/${userId}?limit=${PAGE_SIZE}&skip=${currentSkip}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.audios) {
@@ -100,7 +137,7 @@ const Dashboard = () => {
       })
       .catch(() => setError("Could not reach the server."))
       .finally(() => { setLoading(false); setLoadingMore(false); });
-  }, [user?._id]);
+  }, [userId]);
 
   useEffect(() => { fetchPage(0, true); }, [fetchPage]);
 
@@ -122,12 +159,17 @@ const Dashboard = () => {
     silencesSaved: uploads.reduce((s, u) => s + (u.stats?.silences_removed_sec || 0), 0),
   }), [uploads, total]);
 
-  
   const selectItem = (item) => { setSelected(item); setActiveTab("transcript"); };
 
-  const handleDelete = async (e, id) => {
+  // Opens the custom confirm dialog instead of window.confirm
+  const handleDeleteClick = (e, id) => {
     e.stopPropagation();
-    if (!window.confirm("Delete this recording? This cannot be undone.")) return;
+    setConfirmDialog({ id });
+  };
+
+  const handleDeleteConfirm = async () => {
+    const { id } = confirmDialog;
+    setConfirmDialog(null);
     setDeleting(id);
     try {
       const r = await fetch(`${API_BASE}/my-uploads/${id}`, { method: "DELETE" });
@@ -145,6 +187,8 @@ const Dashboard = () => {
       setDeleting(null);
     }
   };
+
+  const handleDeleteCancel = () => setConfirmDialog(null);
 
   const tabContent = () => {
     if (!selected) return null;
@@ -174,6 +218,15 @@ const Dashboard = () => {
     <div className={`dash-wrapper ${theme}`}>
 
       {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+
+      {/* Custom Confirm Dialog */}
+      {confirmDialog && (
+        <ConfirmDialog
+          message="Delete this recording? This cannot be undone."
+          onConfirm={handleDeleteConfirm}
+          onCancel={handleDeleteCancel}
+        />
+      )}
 
       {/* SHARED FLOATING NAVBAR */}
       <Navbar theme={theme} toggleTheme={toggleTheme} />
@@ -298,10 +351,12 @@ const Dashboard = () => {
                   <button
                     className="dash-delete-btn"
                     title="Delete recording"
-                    onClick={(e) => handleDelete(e, item._id)}
+                    onClick={(e) => handleDeleteClick(e, item._id)}
                     disabled={deleting === item._id}
                   >
-                    {deleting === item._id ? <div className="dash-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> : <FaTrash />}
+                    {deleting === item._id
+                      ? <div className="dash-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+                      : <FaTrash />}
                   </button>
                 </div>
               ))}
@@ -351,7 +406,7 @@ const Dashboard = () => {
                   {selected.stats && (
                     <div className="dash-stats-strip">
                       {Object.entries(selected.stats)
-                        .filter(([k]) => !["noise_method","transcription_method","translation_method"].includes(k))
+                        .filter(([k]) => !HIDDEN_STAT_KEYS.includes(k))
                         .map(([k, v]) => {
                           const display = k === "silences_removed_sec" ? formatSilence(v) : String(v);
                           return (
