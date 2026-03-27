@@ -145,21 +145,22 @@ const Login = () => {
               </span>
             </div>
 
-            <div className="terms-row">
-              <input
-                type="checkbox"
-                id="accept-terms-login"
-                checked={accepted}
-                onChange={(e) => setAccepted(e.target.checked)}
-              />
-              <label htmlFor="accept-terms-login">
-                I accept the{" "}
-                <Link to="/terms" target="_blank">Terms & Conditions</Link>
-              </label>
-            </div>
-
-            <div className="user-guide-row">
-              <Link to="/user-guide" target="_blank">📖 User Guide</Link>
+            <div className="terms-guide-row">
+              <div className="terms-row">
+                <input
+                  type="checkbox"
+                  id="accept-terms-login"
+                  checked={accepted}
+                  onChange={(e) => setAccepted(e.target.checked)}
+                />
+                <label htmlFor="accept-terms-login">
+                  I accept the{" "}
+                  <Link to="/terms">Terms & Conditions</Link>
+                </label>
+              </div>
+              <div className="user-guide-row">
+                <Link to="/user-guide">📖 User Guide</Link>
+              </div>
             </div>
 
             {error && <p style={{ color: "red" }}>{error}</p>}
