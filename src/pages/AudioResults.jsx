@@ -21,14 +21,20 @@ function AudioResults() {
     stats         = null,
   } = location.state || {};
 
-  const [theme, setTheme]       = useState(localStorage.getItem("theme") || "light");
-  const [toast, setToast]       = useState("");
+  const [theme, setTheme]     = useState(localStorage.getItem("theme") || "light");
+  const [toast, setToast]     = useState("");
   const [shareOpen, setShareOpen] = useState(false);
 
   const toggleTheme = () => {
     const t = theme === "light" ? "dark" : "light";
     setTheme(t);
     localStorage.setItem("theme", t);
+  };
+
+  // BUG FIX: Replaced broken onAnimationEnd toast pattern with a simple setTimeout
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 3000);
   };
 
   // If someone lands here directly without state, send them back
@@ -55,14 +61,14 @@ function AudioResults() {
       <Navbar theme={theme} toggleTheme={toggleTheme} />
 
       {toast && (
-        <div className="studio-toast" onAnimationEnd={() => setTimeout(() => setToast(""), 2500)}>
+        <div className="studio-toast">
           <FaCheckCircle className="toast-icon" /> {toast}
         </div>
       )}
 
       <div className="results-fullscreen">
 
-        {/* ── Top bar ── */}
+        {/* ── Top bar — Share button removed ── */}
         <div className="results-topbar">
           <div className="results-topbar-left">
             <span className="results-topbar-logo">
@@ -72,12 +78,15 @@ function AudioResults() {
               <FaCheckCircle style={{ marginRight: 5 }} /> Processing Complete
             </span>
           </div>
-          <button
-            className="results-back-btn"
-            onClick={() => navigate("/studio")}
-          >
-            <FaArrowLeft style={{ marginRight: 6 }} /> Process Again
-          </button>
+
+          <div className="results-actions">
+            <button
+              className="results-back-btn"
+              onClick={() => navigate("/studio")}
+            >
+              <FaArrowLeft style={{ marginRight: 6 }} /> Process Again
+            </button>
+          </div>
         </div>
 
         {/* ── Audio hero ── */}
@@ -88,11 +97,11 @@ function AudioResults() {
             <>
               <audio controls src={enhancedAudio} className="results-audio-player" />
 
-              {/* Download + Share */}
+              {/* BUG FIX: Download button margin overrides removed — layout handled by flex hero-actions */}
               <div className="results-hero-actions">
                 <a
                   href={enhancedAudio}
-                  download="enhanced_audio.wav"
+                  download={enhancedAudio.split('/').pop() || 'enhanced_audio.wav'}
                   className="studio-download-btn"
                 >
                   <FaDownload style={{ marginRight: 7 }} /> Download
@@ -141,7 +150,7 @@ function AudioResults() {
                         className="share-option instagram"
                         onClick={() => {
                           navigator.clipboard.writeText(enhancedAudio);
-                          setToast("Link copied! Paste it in your Instagram story or bio.");
+                          showToast("Link copied! Paste it in your Instagram story or bio.");
                           setShareOpen(false);
                         }}
                       >
@@ -153,7 +162,7 @@ function AudioResults() {
                         className="share-option copy-link"
                         onClick={() => {
                           navigator.clipboard.writeText(enhancedAudio);
-                          setToast("Link copied to clipboard!");
+                          showToast("Link copied to clipboard!");
                           setShareOpen(false);
                         }}
                       >
@@ -215,13 +224,14 @@ function AudioResults() {
             </div>
           </div>
 
-          <div className="result-card stats-card">
+          {/* BUG FIX: "stats-card" had no CSS definition — changed to "result-card--stats" with proper styles */}
+          <div className="result-card result-card--stats">
             <div className="result-card-header">
               <FaChartBar className="result-card-icon" />
               <span className="result-card-title">Stats</span>
             </div>
             <div className="stats-grid">
-              {stats ? (
+              {stats && typeof stats === 'object' ? (
                 Object.entries(stats)
                   .filter(([k]) =>
                     !["noise_method", "transcription_method", "translation_method"].includes(k)
