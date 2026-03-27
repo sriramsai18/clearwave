@@ -3,17 +3,16 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
   FaUpload, FaMicrophone, FaStop, FaCircle, FaCheckCircle,
-  FaRocket, FaTimes, FaArrowLeft, FaDownload,
-  FaFileAlt, FaGlobe, FaClipboardList, FaChartBar,
+  FaRocket, FaTimes, FaArrowLeft,
   FaTrash, FaRedoAlt, FaCut, FaWind, FaCommentDots,
   FaTimesCircle, FaClock, FaBox, FaBan,
-  FaSyncAlt, FaHourglassHalf, FaShareAlt,
-  FaWhatsapp, FaTwitter, FaInstagram, FaCopy,
+  FaSyncAlt, FaHourglassHalf,
 } from "react-icons/fa";
 import Navbar from "../components/Navbar";
 import "./AudioStudio.css";
 
-const API_BASE = process.env.REACT_APP_API || "http://localhost:5000";
+const API_BASE   = process.env.REACT_APP_API      || "http://localhost:5000";
+const HF_SPACE   = process.env.REACT_APP_HF_SPACE || "https://clearwave48-clearwave-api.hf.space";
 
 function AudioStudio() {
   const navigate = useNavigate();
@@ -47,14 +46,7 @@ function AudioStudio() {
   const MAX_FILE_MB    = 50;
   const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
 
-  const [toast, setToast] = useState("");
-  const [shareOpen, setShareOpen] = useState(false);
 
-  const [enhancedAudio, setEnhancedAudio] = useState(null);
-  const [transcript, setTranscript]       = useState("");
-  const [translation, setTranslation]     = useState("");
-  const [summary, setSummary]             = useState("");
-  const [stats, setStats]                 = useState(null);
 
   const [srcLang, setSrcLang]         = useState("auto");
   const [tgtLang, setTgtLang]         = useState("te");
@@ -78,13 +70,12 @@ function AudioStudio() {
   }, [navigate]);
 
   const resetResults = () => {
-    setEnhancedAudio((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
-    setTranscript(""); setTranslation(""); setSummary(""); setStats(null);
     setStatus(""); setStep(0); setUploadProgress(0);
     setFailedStep(null); setErrorMsg("");
     setColdStart(false); setSseWarning(false);
-    clearTimeout(wakeUpTimerRef.current);
-    clearTimeout(sseTimerRef.current);
+    setIsProcessing(false);
+    if (wakeUpTimerRef.current) clearTimeout(wakeUpTimerRef.current);
+    if (sseTimerRef.current)    clearInterval(sseTimerRef.current);
   };
 
   const handleCancel = () => {
@@ -150,9 +141,16 @@ function AudioStudio() {
     try { user = JSON.parse(localStorage.getItem("user")); } catch { /* corrupted */ }
     if (!user) return;
 
+    // ── Reset everything cleanly BEFORE setting isProcessing ─────────
+    setStatus(""); setStep(0); setUploadProgress(0);
+    setFailedStep(null); setErrorMsg("");
+    setColdStart(false); setSseWarning(false);
+    setIsProcessing(true);
+
     const controller = new AbortController();
     abortControllerRef.current = controller;
-    setIsProcessing(true); resetResults();
+    // completedRef: plain ref — no re-render, tracks if done/error already fired
+    let completed = false;
     let currentStep = 0;
 
     wakeUpTimerRef.current = setTimeout(() => setColdStart(true), 5000);
@@ -175,10 +173,42 @@ function AudioStudio() {
 
       clearTimeout(wakeUpTimerRef.current); setColdStart(false);
       const { url: audioUrl, audioId } = uploadRes.data;
+      console.log("[UPLOAD] Success. audioUrl:", audioUrl, "audioId:", audioId);
+
+      // ── Wake up HF Space BEFORE hitting Render ──────────────────
+      // Render free tier has a 30s timeout. If we wait for HF Space
+      // inside Render, it times out. Instead, ping HF Space directly
+      // from the browser until it responds, then call Render.
+      setStatus("Waking up AI server..."); setStep(1); currentStep = 1;
+      const maxAttempts = 25; // up to ~75 seconds
+      let hfReady = false;
+      for (let i = 0; i < maxAttempts; i++) {
+        if (controller.signal.aborted) return;
+        try {
+          const hfCheck = await fetch(`${HF_SPACE}/api/health`, { signal: AbortSignal.timeout(6000) });
+          if (hfCheck.ok) { hfReady = true; break; }
+        } catch (_) { /* still booting */ }
+        const elapsed = (i + 1) * 3;
+        setStatus(`⏳ AI server starting up... (${elapsed}s)`);
+        setColdStart(true);
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+      setColdStart(false);
+      if (!hfReady) {
+        completed = true;
+        setIsProcessing(false);
+        setFailedStep(1);
+        setErrorMsg("HuggingFace AI server failed to start after 75 seconds. Please try again.");
+        return;
+      }
+      // ────────────────────────────────────────────────────────────
+
       setStatus("Uploaded! Starting AI processing..."); setStep(1); currentStep = 1;
 
       let lastSseEvent = Date.now();
-      sseTimerRef.current = setInterval(() => { if (Date.now() - lastSseEvent > 15000) setSseWarning(true); }, 3000);
+      sseTimerRef.current = setInterval(() => {
+        if (Date.now() - lastSseEvent > 15000) setSseWarning(true);
+      }, 3000);
 
       const doFetch = () => fetch(`${API_BASE}/process-audio`, {
         method: "POST",
@@ -188,13 +218,21 @@ function AudioStudio() {
       });
 
       let response = await doFetch();
+      console.log("[SSE CONNECT] status:", response.status, "ok:", response.ok);
+      console.log("[SSE CONNECT] headers:", [...response.headers.entries()]);
       if (!response.ok && (response.status === 502 || response.status === 503)) {
         setStatus("Server is waking up, retrying in 6 seconds...");
         await new Promise((res) => setTimeout(res, 6000));
         if (controller.signal.aborted) return;
         response = await doFetch();
       }
-      if (!response.ok) { setFailedStep(currentStep); setErrorMsg(`Server rejected the request (${response.status}). Please try again.`); return; }
+      if (!response.ok) {
+        completed = true;
+        setIsProcessing(false);
+        setFailedStep(currentStep);
+        setErrorMsg(`Server rejected the request (${response.status}). Please try again.`);
+        return;
+      }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -202,8 +240,11 @@ function AudioStudio() {
 
       while (true) {
         const { done, value } = await reader.read();
+        console.log("[SSE READ] done:", done, "value length:", value?.length ?? 0);
         if (value) {
-          lineBuffer += decoder.decode(value, { stream: true });
+          const rawChunk = decoder.decode(value, { stream: true });
+          console.log("[SSE RAW CHUNK]", JSON.stringify(rawChunk.slice(0, 500)));
+          lineBuffer += rawChunk;
           const lines = lineBuffer.split("\n");
           lineBuffer = lines.pop();
           for (const line of lines) {
@@ -213,18 +254,41 @@ function AudioStudio() {
             if (!rawLine) continue;
             try {
               const data = JSON.parse(rawLine);
+              console.log("[SSE EVENT]", data); // 👈 logs every SSE event
               lastSseEvent = Date.now(); setSseWarning(false);
               if (data.step !== undefined) { currentStep = data.step; setStep(data.step); }
               setStatus(data.message || "");
+
               if (data.status === "done") {
-                clearInterval(sseTimerRef.current); setSseWarning(false);
-                setEnhancedAudio(data.enhancedAudio || "error");
-                setTranscript(data.transcript || ""); setTranslation(data.translation || "");
-                setSummary(data.summary || ""); setStats(data.stats || null);
-                setToast("Audio enhanced successfully!");
-              }
-              if (data.status === "error") {
+                console.log("[SSE DONE] Received done event. Navigating to /audio-results");
+                console.log("[SSE DONE] data:", JSON.stringify(data).slice(0, 300));
+                completed = true;
                 clearInterval(sseTimerRef.current);
+                clearTimeout(wakeUpTimerRef.current);
+                setSseWarning(false);
+                setColdStart(false);
+                setIsProcessing(false);
+                // Navigate to the dedicated results page, passing all data via state
+                navigate("/audio-results", {
+                  state: {
+                    enhancedAudio: data.enhancedAudio || "error",
+                    transcript:    data.transcript    || "",
+                    translation:   data.translation   || "",
+                    summary:       data.summary       || "",
+                    stats:         data.stats         || null,
+                  },
+                });
+                console.log("[SSE DONE] navigate() called");
+                return;
+              }
+
+              if (data.status === "error") {
+                console.log("[SSE ERROR]", data.message);
+                completed = true;
+                clearInterval(sseTimerRef.current);
+                clearTimeout(wakeUpTimerRef.current);
+                setIsProcessing(false);
+                setColdStart(false);
                 setFailedStep(currentStep);
                 setErrorMsg(data.message || `Something went wrong during the ${STEP_NAMES[currentStep] || "processing"} step.`);
                 return;
@@ -235,14 +299,30 @@ function AudioStudio() {
         if (done) break;
       }
     } catch (err) {
-      if (err.name === "AbortError" || err.code === "ERR_CANCELED") { setFailedStep(null); setErrorMsg("cancelled"); return; }
+      if (err.name === "AbortError" || err.code === "ERR_CANCELED") {
+        completed = true;
+        setIsProcessing(false);
+        setFailedStep(null);
+        setErrorMsg("cancelled");
+        return;
+      }
       const serverMsg = err.response?.data?.error || err.response?.data?.message || err.message || "Unknown error";
       console.error("[AudioStudio] Upload/process error:", serverMsg, err);
+      completed = true;
+      setIsProcessing(false);
       setFailedStep(currentStep);
       setErrorMsg(`Failed at ${STEP_NAMES[currentStep] || "processing"}: ${serverMsg}`);
     } finally {
-      setIsProcessing(false); setColdStart(false);
-      clearTimeout(wakeUpTimerRef.current); clearInterval(sseTimerRef.current);
+      // ONLY clean up timers and refs here — NEVER touch state.
+      // All state transitions happen above in their exact branches.
+      // If completed=false here it means we exited the loop without
+      // a done/error event (shouldn't happen, but stop spinner as fallback).
+      if (!completed) {
+        console.warn("[FINALLY] completed=false — stream ended without done/error event");
+        setIsProcessing(false);
+      }
+      clearTimeout(wakeUpTimerRef.current);
+      clearInterval(sseTimerRef.current);
       abortControllerRef.current = null;
     }
   };
@@ -255,200 +335,6 @@ function AudioStudio() {
     { key: "breaths",  label: "Breaths",  icon: <FaWind />,         val: optBreaths,   set: setOptBreaths   },
     { key: "mouth",    label: "Mouth",    icon: <FaCommentDots />,  val: optMouth,     set: setOptMouth     },
   ];
-
-  const hasResults = enhancedAudio || transcript;
-
-  // ── RESULTS VIEW ──────────────────────────────────────────────────
-  if (hasResults) {
-    return (
-      <div className={`studio-page ${theme}`}>
-        <div className="studio-overlay" />
-        <Navbar theme={theme} toggleTheme={toggleTheme} />
-
-        {toast && (
-          <div className="studio-toast" onAnimationEnd={() => setTimeout(() => setToast(""), 2500)}>
-            <FaCheckCircle className="toast-icon" /> {toast}
-          </div>
-        )}
-
-        <div className="results-fullscreen">
-
-          {/* Top bar */}
-          <div className="results-topbar">
-            <div className="results-topbar-left">
-              <span className="results-topbar-logo">
-                <FaMicrophone className="topbar-logo-icon" /> ClearWave AI
-              </span>
-              <span className="results-topbar-badge">
-                <FaCheckCircle style={{ marginRight: 5 }} /> Processing Complete
-              </span>
-            </div>
-            <button className="results-back-btn" onClick={() => resetResults()}>
-              <FaArrowLeft style={{ marginRight: 6 }} /> Process Again
-            </button>
-          </div>
-
-          {/* Audio hero */}
-          <div className="results-hero">
-            <div className="results-hero-label">Enhanced Audio</div>
-            {enhancedAudio && enhancedAudio !== "error" ? (
-        <audio 
-          controls 
-          src={enhancedAudio} 
-          className="results-audio-player"
-          preload="metadata"
-          onError={(e) => {
-          console.error('Audio failed to load:', enhancedAudio, e.target.error);
-          // Fallback message
-            e.currentTarget.nextElementSibling.style.display = 'block';
-            e.currentTarget.style.display = 'none';
-            }}
-          onLoadedMetadata={() => console.log('Audio loaded successfully:', enhancedAudio)}
-        />
-        ) : (
-      <p className="result-empty">Audio enhancement not available — check console for SSE data.enhancedAudio</p>
-      )}
-
-                {/* Action row: Download + Share */}
-                <div className="results-hero-actions">
-                  <a href={enhancedAudio} download="enhanced_audio.wav" className="studio-download-btn">
-                    <FaDownload style={{ marginRight: 7 }} /> Download
-                  </a>
-
-                  {/* Share button + popover */}
-                  <div className="share-wrapper">
-                    <button
-                      className="studio-share-btn"
-                      onClick={() => setShareOpen((o) => !o)}
-                      title="Share audio"
-                    >
-                      <FaShareAlt style={{ marginRight: 7 }} /> Share
-                    </button>
-
-                    {shareOpen && (
-                      <div className="share-popover">
-                        <p className="share-popover-title">Share Enhanced Audio</p>
-
-                        {/* WhatsApp */}
-                        <a
-                          className="share-option whatsapp"
-                          href={`https://wa.me/?text=${encodeURIComponent("🎙️ Check out this AI-enhanced audio by ClearWave!\n" + enhancedAudio)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => setShareOpen(false)}
-                        >
-                          <FaWhatsapp className="share-option-icon" />
-                          <span>WhatsApp</span>
-                        </a>
-
-                        {/* X (Twitter) */}
-                        <a
-                          className="share-option twitter"
-                          href={`https://twitter.com/intent/tweet?text=${encodeURIComponent("🎙️ Just enhanced my audio with ClearWave AI! Listen here:")}&url=${encodeURIComponent(enhancedAudio)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => setShareOpen(false)}
-                        >
-                          <FaTwitter className="share-option-icon" />
-                          <span>X (Twitter)</span>
-                        </a>
-
-                        {/* Instagram — link copy (Instagram has no web share URL) */}
-                        <button
-                          className="share-option instagram"
-                          onClick={() => {
-                            navigator.clipboard.writeText(enhancedAudio);
-                            setToast("Link copied! Paste it in your Instagram story or bio.");
-                            setShareOpen(false);
-                          }}
-                        >
-                          <FaInstagram className="share-option-icon" />
-                          <span>Instagram <span className="share-copy-hint">(copy link)</span></span>
-                        </button>
-
-                        {/* Copy link */}
-                        <button
-                          className="share-option copy-link"
-                          onClick={() => {
-                            navigator.clipboard.writeText(enhancedAudio);
-                            setToast("Link copied to clipboard!");
-                            setShareOpen(false);
-                          }}
-                        >
-                          <FaCopy className="share-option-icon" />
-                          <span>Copy Link</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <p className="result-empty">Audio enhancement not available</p>
-            )}
-          </div>
-
-          {/* Result cards */}
-          <div className="results-grid">
-
-            <div className="result-card">
-              <div className="result-card-header">
-                <FaFileAlt className="result-card-icon" />
-                <span className="result-card-title">Transcript</span>
-              </div>
-              <div className="result-card-body">
-                {transcript ? <p className="result-text">{transcript}</p> : <p className="result-empty">No transcript available</p>}
-              </div>
-            </div>
-
-            <div className="result-card">
-              <div className="result-card-header">
-                <FaGlobe className="result-card-icon" />
-                <span className="result-card-title">Translation</span>
-              </div>
-              <div className="result-card-body">
-                {translation && translation !== transcript
-                  ? <p className="result-text">{translation}</p>
-                  : translation && translation === transcript
-                  ? <p className="result-empty" style={{ fontStyle: "italic" }}>Same as transcript — source and target language were identical.</p>
-                  : <p className="result-empty">No translation available</p>}
-              </div>
-            </div>
-
-            <div className="result-card">
-              <div className="result-card-header">
-                <FaClipboardList className="result-card-icon" />
-                <span className="result-card-title">Summary</span>
-              </div>
-              <div className="result-card-body">
-                {summary ? <p className="result-text">{summary}</p> : <p className="result-empty">No summary available</p>}
-              </div>
-            </div>
-
-            <div className="result-card stats-card">
-              <div className="result-card-header">
-                <FaChartBar className="result-card-icon" />
-                <span className="result-card-title">Stats</span>
-              </div>
-              <div className="stats-grid">
-                {stats
-                  ? Object.entries(stats)
-                      .filter(([k]) => !["noise_method","transcription_method","translation_method"].includes(k))
-                      .map(([k, v]) => (
-                        <div key={k} className="stat-item">
-                          <span className="stat-key">{k}</span>
-                          <span className="stat-val">{String(v)}</span>
-                        </div>
-                      ))
-                  : <p className="result-empty">No stats available</p>}
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // ── MAIN STUDIO VIEW ──────────────────────────────────────────────
   return (
