@@ -281,10 +281,21 @@
   text-decoration: underline;
 }
 
-.user-guide-row {
-  text-align: right;
+.terms-guide-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 16px;
+}
+
+.terms-guide-row .terms-row {
+  margin-bottom: 0;
+}
+
+.user-guide-row {
   font-size: 13px;
+  white-space: nowrap;
 }
 
 .user-guide-row a {
