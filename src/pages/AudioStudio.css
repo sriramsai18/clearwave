@@ -9,7 +9,8 @@
   padding: 72px 24px 40px;
   animation: fadeIn 0.8s ease;
   font-family: 'Poppins', sans-serif;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Design 1 — Deep Space Nebula orbs */
@@ -93,7 +94,7 @@
 }
 .studio-page.light .back-btn:hover { background: rgba(0,100,220,.15); }
 .studio-page.light .studio-tabs { background: rgba(0,100,220,.06); }
-.studio-page.light .studio-tab { color: #90a0b8; }
+.studio-page.light .studio-tab { color: #5a7184; }
 .studio-page.light .studio-tab.active { background: #fff; color: #0060c0; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
 .studio-page.light .studio-dropzone { border-color: rgba(0,120,220,.3); }
 .studio-page.light .studio-dropzone:hover, .studio-page.light .studio-dropzone.dragging { border-color: rgba(0,120,220,.6); background: rgba(0,120,220,.04); }
@@ -474,14 +475,24 @@
 /* ── Top bar ── */
 .results-topbar {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap; /* Allows buttons to drop to next line if needed */
+  gap: 12px;
+  width: 100%;
   margin-bottom: 24px;
   padding: 14px 20px;
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 16px;
   backdrop-filter: blur(12px);
+}
+
+.results-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 1; /* Allows the container to shrink to fit screen */
 }
 
 .results-topbar-left {
@@ -564,13 +575,35 @@
   }
   .results-topbar {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+    align-items: stretch;
+    gap: 16px;
+    padding: 16px;
   }
   .results-topbar-left {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .results-topbar {
+    padding: 0 4px; /* Give it some breathing room from edges */
+  }
+
+  .studio-share-btn, .results-back-btn {
+    padding: 8px 12px; /* Slim down buttons slightly on mobile */
+    font-size: 13px;
+  }
+
+  /* If they still overlap, stack them vertically */
+  .results-topbar {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .results-actions {
+    justify-content: flex-end;
   }
 }
 
@@ -675,7 +708,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin: 12px 18px 16px;
+  margin: 0;
   padding: 9px 20px;
   background: rgba(111,255,176,0.1);
   border: 1px solid rgba(111,255,176,0.3);
@@ -685,6 +718,7 @@
   font-weight: 600;
   text-decoration: none;
   transition: all 0.25s ease;
+  white-space: nowrap;
 }
 
 .studio-download-btn:hover {
@@ -735,10 +769,7 @@
 }
 
 /* ── ANIMATIONS ───────────────────────────────────────────── */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
+/* NOTE: @keyframes fadeIn is defined once at the bottom of this file */
 
 @keyframes floatUp {
   from { opacity: 0; transform: translateY(36px) scale(0.97); }
@@ -1097,6 +1128,41 @@
   width: 100%;
 }
 
+/* Ensure share popover in hero doesn't overflow right edge on any screen */
+.results-hero-actions .share-wrapper {
+  position: relative;
+}
+
+.results-hero-actions .share-popover {
+  left: 0;
+  right: auto;
+}
+
+/* On small screens shift popover so it doesn't clip off screen */
+@media (max-width: 420px) {
+  .results-hero-actions .share-popover {
+    left: auto;
+    right: 0;
+  }
+  .results-hero-actions {
+    gap: 8px;
+  }
+  .studio-download-btn,
+  .studio-share-btn {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+}
+
+/* ── STATS CARD (BUG FIX: was .stats-card, now .result-card--stats) ── */
+.result-card--stats .stats-grid {
+  padding: 16px 18px;
+}
+
+.result-card--stats .result-card-header {
+  border-bottom-color: rgba(111,255,176,0.12);
+}
+
 /* ── SHARE BUTTON ─────────────────────────────────────────── */
 .studio-share-btn {
   display: inline-flex;
@@ -1220,12 +1286,9 @@
 
 /* ── RESPONSIVE ───────────────────────────────────────────── */
 @media (max-width: 500px) {
+  /* Share popover: flip to right-anchored so it never clips off left edge */
   .share-popover {
     left: auto;
     right: 0;
-  }
-  .results-hero-actions {
-    flex-direction: column;
-    align-items: flex-start;
   }
 }
