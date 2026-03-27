@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import ResetPassword from "./pages/ResetPassword";
 import AudioStudio from "./pages/AudioStudio";
+import AudioResults from "./pages/AudioResults";
 import UserGuide from "./pages/UserGuide";
 import FAQ from "./pages/FAQ";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -35,6 +36,9 @@ function App() {
         <Route path="/audio-studio" element={
           <ProtectedRoute><AudioStudio /></ProtectedRoute>
         } />
+        <Route path="/audio-results" element-{
+          <ProtectedRoute><AudioResluts /></ProtectedRoute>
+        }/>
 
         {/* 404 — redirect unknown routes to home */}
         <Route path="*" element={<Navigate to="/" replace />} />
