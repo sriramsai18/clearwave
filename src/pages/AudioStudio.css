@@ -205,7 +205,7 @@
 .studio-dropzone.dragging {
   border-color: rgba(255, 255, 255, 0.7);
   background: rgba(255, 255, 255, 0.06);
-  transform: translateY(-2px);
+  transform: translateY(-3px);
 }
 
 .studio-dropzone.has-file {
@@ -220,6 +220,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  animation: breathe 2.8s ease-in-out infinite;
+}
+
+/* Pause breathe when file is selected — show solid instead */
+.studio-dropzone.has-file .dropzone-icon {
+  animation: none;
+  color: #6fffb0;
 }
 
 .dropzone-main {
@@ -370,8 +377,8 @@
 }
 
 .studio-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 36px rgba(255, 255, 255, 0.25);
+  transform: translateY(-3px);
+  box-shadow: 0 15px 40px rgba(255, 255, 255, 0.3);
 }
 
 .studio-btn:disabled {
@@ -743,6 +750,13 @@
   50%       { transform: scale(1.06); box-shadow: 0 0 44px rgba(220,38,38,0.9); }
 }
 
+/* Breathing icon animation (from UploadAudio.css) */
+@keyframes breathe {
+  0%   { opacity: 0.55; transform: scale(0.94); }
+  50%  { opacity: 1;    transform: scale(1.04); }
+  100% { opacity: 0.55; transform: scale(0.94); }
+}
+
 /* ── RESPONSIVE ───────────────────────────────────────────── */
 @media (max-width: 600px) {
   .studio-card {
@@ -1033,6 +1047,47 @@
 /* mic-btn svg sizing */
 .mic-btn svg { font-size: 28px; }
 
+/* ── AUDIO PREVIEW (Record mode) ──────────────────────────── */
+/* Used by <audio className="studio-audio-preview" /> in record mode */
+.studio-audio-preview {
+  width: 100%;
+  border-radius: 10px;
+  accent-color: #6fffb0;
+  margin-top: 4px;
+}
+
+/* ── RE-RECORD BUTTON ─────────────────────────────────────── */
+.rerecord-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 18px;
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ccc;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  transition: all 0.2s ease;
+}
+.rerecord-btn:hover {
+  background: rgba(220, 38, 38, 0.12);
+  border-color: rgba(220, 38, 38, 0.35);
+  color: #f87171;
+}
+.studio-page.light .rerecord-btn {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.12);
+  color: #667;
+}
+.studio-page.light .rerecord-btn:hover {
+  background: rgba(220,38,38,0.07);
+  border-color: rgba(220,38,38,0.25);
+  color: #dc2626;
+}
+
 /* ── RESULTS HERO ACTIONS ROW ─────────────────────────────── */
 .results-hero-actions {
   display: flex;
@@ -1040,198 +1095,6 @@
   gap: 10px;
   flex-wrap: wrap;
   width: 100%;
-}
-/* =============================================
-   LIGHT THEME — RESULTS / OUTPUT SECTION
-   ============================================= */
-
-/* Top bar */
-.studio-page.light .results-topbar {
-  background: rgba(255, 255, 255, 0.75);
-  border-color: rgba(0, 100, 220, 0.15);
-}
-
-.studio-page.light .results-topbar-logo {
-  color: #0a1a2e;
-}
-
-.studio-page.light .results-topbar-badge {
-  color: #0060c0;
-  background: rgba(0, 100, 220, 0.1);
-  border-color: rgba(0, 100, 220, 0.25);
-}
-
-.studio-page.light .results-back-btn {
-  background: rgba(0, 100, 220, 0.08);
-  border-color: rgba(0, 100, 220, 0.2);
-  color: #0a1a2e;
-}
-
-.studio-page.light .results-back-btn:hover {
-  background: rgba(0, 100, 220, 0.16);
-}
-
-/* Audio hero */
-.studio-page.light .results-hero {
-  background: rgba(0, 100, 220, 0.05);
-  border-color: rgba(0, 100, 220, 0.2);
-}
-
-.studio-page.light .results-hero-label {
-  color: #0060c0;
-}
-
-.studio-page.light .results-audio-player {
-  accent-color: #0060c0;
-}
-
-/* Success banner */
-.studio-page.light .results-banner {
-  background: linear-gradient(135deg, rgba(0, 120, 220, 0.08), rgba(0, 191, 255, 0.06));
-  border-color: rgba(0, 100, 220, 0.25);
-}
-
-.studio-page.light .results-banner-title {
-  color: #0050b0;
-}
-
-.studio-page.light .results-banner-sub {
-  color: #4a6080;
-}
-
-/* Result Cards */
-.studio-page.light .result-card {
-  background: rgba(255, 255, 255, 0.88);
-  border-color: rgba(0, 100, 220, 0.15);
-  box-shadow: 0 4px 20px rgba(0, 80, 180, 0.08);
-}
-
-.studio-page.light .result-card:hover {
-  box-shadow: 0 8px 32px rgba(0, 80, 180, 0.15);
-}
-
-.studio-page.light .result-card-header {
-  background: rgba(0, 100, 220, 0.05);
-  border-bottom-color: rgba(0, 100, 220, 0.12);
-}
-
-.studio-page.light .result-card-icon {
-  color: #0060c0;
-}
-
-.studio-page.light .result-card-title {
-  color: #0050b0;
-}
-
-.studio-page.light .result-text {
-  color: #1a2a3a;
-}
-
-.studio-page.light .result-empty {
-  color: #7090b0;
-}
-
-/* Stats card */
-.studio-page.light .stat-item {
-  background: rgba(0, 100, 220, 0.04);
-  border-color: rgba(0, 100, 220, 0.1);
-}
-
-.studio-page.light .stat-key {
-  color: #5070a0;
-}
-
-.studio-page.light .stat-val {
-  color: #0a1a2e;
-}
-
-/* Download button */
-.studio-page.light .studio-download-btn {
-  background: rgba(0, 100, 220, 0.08);
-  border-color: rgba(0, 100, 220, 0.25);
-  color: #0060c0;
-}
-
-.studio-page.light .studio-download-btn:hover {
-  background: rgba(0, 100, 220, 0.16);
-}
-
-/* Audio card accent */
-.studio-page.light .audio-card {
-  border-color: rgba(0, 100, 220, 0.2);
-}
-
-.studio-page.light .audio-card .result-card-header {
-  background: rgba(0, 100, 220, 0.06);
-}
-
-.studio-page.light .studio-audio-player {
-  accent-color: #0060c0;
-}
-
-/* Progress section */
-.studio-page.light .progress-track {
-  background: rgba(0, 100, 220, 0.1);
-}
-
-.studio-page.light .progress-step {
-  color: #7090b0;
-}
-
-.studio-page.light .progress-step.done {
-  color: #0060c0;
-}
-
-.studio-page.light .progress-step.active {
-  color: #0080e0;
-}
-
-.studio-page.light .progress-status {
-  color: #3060a0;
-}
-
-.studio-page.light .upload-progress-header {
-  color: #3060a0;
-}
-
-.studio-page.light .upload-pct {
-  color: #0a1a2e;
-}
-
-/* Info banners */
-.studio-page.light .studio-info-banner.cold-start {
-  background: rgba(99, 102, 241, 0.07);
-  border-color: rgba(99, 102, 241, 0.25);
-}
-
-.studio-page.light .studio-info-banner.sse-warning {
-  background: rgba(251, 146, 60, 0.07);
-  border-color: rgba(251, 146, 60, 0.25);
-}
-
-.studio-page.light .info-title {
-  color: #0a1a2e;
-}
-
-.studio-page.light .info-sub {
-  color: #4a6080;
-}
-
-/* Error/cancel panel */
-.studio-page.light .error-title {
-  color: #1a2a3a;
-}
-
-.studio-page.light .error-sub {
-  color: #4a6080;
-}
-
-/* Toast */
-.studio-page.light .studio-toast {
-  background: #ffffff;
-  border-color: rgba(0, 100, 220, 0.3);
-  color: #0060c0;
-  box-shadow: 0 8px 32px rgba(0, 80, 180, 0.15);
 }
 
 /* ── SHARE BUTTON ─────────────────────────────────────────── */
