@@ -37,7 +37,7 @@ function App() {
           <ProtectedRoute><AudioStudio /></ProtectedRoute>
         } />
         <Route path="/audio-results" element={
-          <ProtectedRoute><AudioResluts /></ProtectedRoute>
+          <ProtectedRoute><AudioResults /></ProtectedRoute>
         }/>
 
         {/* 404 — redirect unknown routes to home */}
