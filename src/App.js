@@ -36,7 +36,7 @@ function App() {
         <Route path="/audio-studio" element={
           <ProtectedRoute><AudioStudio /></ProtectedRoute>
         } />
-        <Route path="/audio-results" element-{
+        <Route path="/audio-results" element={
           <ProtectedRoute><AudioResluts /></ProtectedRoute>
         }/>
 
