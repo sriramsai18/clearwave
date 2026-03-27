@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   FaMicrophone, FaTrash, FaDownload, FaSearch,
@@ -10,16 +10,6 @@ import "./Dashboard.css";
 
 const API_BASE = process.env.REACT_APP_API || "http://localhost:5000";
 const PAGE_SIZE = 20;
-
-
-const HIDDEN_STAT_KEYS = [
-  "noise_method",
-  "transcription_method",
-  "translation_method",
-  "noise_reduction",
-  "denoiser",
-  "denoised",
-];
 
 // ── Helpers ──────────────────────────────────────────────────────────
 const formatDate = (iso) => {
@@ -41,6 +31,17 @@ const formatSilence = (secs) => {
   return `${s.toFixed(1)}s`;
 };
 
+// ── Stats keys to exclude from detail strip ───────────────────────────
+const EXCLUDED_STAT_KEYS = [
+  "noise_method",
+  "transcription_method",
+  "translation_method",
+  "noise_reduction_applied",   // denoiser sub-stats
+  "denoiser",
+  "denoise",
+  "noise_reduced",
+];
+
 // ── Toast ─────────────────────────────────────────────────────────────
 const Toast = ({ msg, type, onClose }) => {
   useEffect(() => {
@@ -55,17 +56,25 @@ const Toast = ({ msg, type, onClose }) => {
   );
 };
 
-// ── Confirm Dialog ────────────────────────────────────────────────────
-const ConfirmDialog = ({ message, onConfirm, onCancel }) => (
-  <div className="dash-confirm-overlay" onClick={onCancel}>
-    <div className="dash-confirm-box" onClick={(e) => e.stopPropagation()}>
-      <div className="dash-confirm-icon">
+// ── Custom Confirm Modal ───────────────────────────────────────────────
+const ConfirmModal = ({ theme, title, message, confirmLabel = "Delete", onConfirm, onCancel }) => (
+  <div className="dash-modal-overlay" onClick={onCancel}>
+    <div
+      className={`dash-modal ${theme}`}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="dash-modal-icon-wrap dash-modal-icon--danger">
         <FaTrash />
       </div>
-      <p className="dash-confirm-msg">{message}</p>
-      <div className="dash-confirm-actions">
-        <button className="dash-confirm-cancel" onClick={onCancel}>Cancel</button>
-        <button className="dash-confirm-delete" onClick={onConfirm}>Delete</button>
+      <h3 className="dash-modal-title">{title}</h3>
+      <p className="dash-modal-message">{message}</p>
+      <div className="dash-modal-actions">
+        <button className="dash-modal-btn dash-modal-btn--cancel" onClick={onCancel}>
+          Cancel
+        </button>
+        <button className="dash-modal-btn dash-modal-btn--danger" onClick={onConfirm}>
+          {confirmLabel}
+        </button>
       </div>
     </div>
   </div>
@@ -75,17 +84,13 @@ const ConfirmDialog = ({ message, onConfirm, onCancel }) => (
 const Dashboard = () => {
   const navigate = useNavigate();
 
-  // FIX: compute user once with a ref so it doesn't change on every render
-  const userRef = useRef(null);
-  if (userRef.current === null) {
-    try {
-      const stored = localStorage.getItem("user");
-      if (stored && stored !== "undefined") userRef.current = JSON.parse(stored);
-    } catch {
-      localStorage.removeItem("user");
-    }
+  let user = null;
+  try {
+    const stored = localStorage.getItem("user");
+    if (stored && stored !== "undefined") user = JSON.parse(stored);
+  } catch {
+    localStorage.removeItem("user");
   }
-  const user = userRef.current;
 
   // Theme — synced with Home.jsx
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
@@ -95,10 +100,7 @@ const Dashboard = () => {
     localStorage.setItem("theme", t);
   };
 
-  // FIX: use a stable ref for navigate so effect doesn't re-run
-  const navigateRef = useRef(navigate);
-  useEffect(() => { navigateRef.current = navigate; }, [navigate]);
-  useEffect(() => { if (!user) navigateRef.current("/login"); }, [user]);
+  useEffect(() => { if (!user) navigate("/login"); }, [user, navigate]);
 
   const [uploads, setUploads]         = useState([]);
   const [total, setTotal]             = useState(0);
@@ -111,19 +113,23 @@ const Dashboard = () => {
   const [search, setSearch]           = useState("");
   const [deleting, setDeleting]       = useState(null);
   const [toast, setToast]             = useState(null);
-  const [confirmDialog, setConfirmDialog] = useState(null); // { id, e }
+
+  // Custom confirm modal state
+  const [confirmModal, setConfirmModal] = useState(null);
+  // confirmModal: { id: string } | null
 
   const showToast = useCallback((msg, type = "success") => {
     setToast({ msg, type });
   }, []);
 
-  // FIX: stable userId to avoid fetchPage recreation on every render
-  const userId = user?._id;
-
   const fetchPage = useCallback((currentSkip, replace = false) => {
-    if (!userId) return;
-    replace ? setLoading(true) : setLoadingMore(true);
-    fetch(`${API_BASE}/my-uploads/${userId}?limit=${PAGE_SIZE}&skip=${currentSkip}`)
+    if (!user?._id) return;
+    if (replace) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+    fetch(`${API_BASE}/my-uploads/${user._id}?limit=${PAGE_SIZE}&skip=${currentSkip}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.audios) {
@@ -136,8 +142,11 @@ const Dashboard = () => {
         }
       })
       .catch(() => setError("Could not reach the server."))
-      .finally(() => { setLoading(false); setLoadingMore(false); });
-  }, [userId]);
+      .finally(() => {
+        setLoading(false);
+        setLoadingMore(false);
+      });
+  }, [user?._id]);
 
   useEffect(() => { fetchPage(0, true); }, [fetchPage]);
 
@@ -161,15 +170,16 @@ const Dashboard = () => {
 
   const selectItem = (item) => { setSelected(item); setActiveTab("transcript"); };
 
-  // Opens the custom confirm dialog instead of window.confirm
-  const handleDeleteClick = (e, id) => {
+  // Opens the custom modal
+  const handleDelete = (e, id) => {
     e.stopPropagation();
-    setConfirmDialog({ id });
+    setConfirmModal({ id });
   };
 
-  const handleDeleteConfirm = async () => {
-    const { id } = confirmDialog;
-    setConfirmDialog(null);
+  // Called when user confirms deletion inside modal
+  const confirmDelete = async () => {
+    const id = confirmModal.id;
+    setConfirmModal(null);
     setDeleting(id);
     try {
       const r = await fetch(`${API_BASE}/my-uploads/${id}`, { method: "DELETE" });
@@ -187,8 +197,6 @@ const Dashboard = () => {
       setDeleting(null);
     }
   };
-
-  const handleDeleteCancel = () => setConfirmDialog(null);
 
   const tabContent = () => {
     if (!selected) return null;
@@ -217,14 +225,18 @@ const Dashboard = () => {
   return (
     <div className={`dash-wrapper ${theme}`}>
 
-      {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+      {toast && (
+        <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />
+      )}
 
-      {/* Custom Confirm Dialog */}
-      {confirmDialog && (
-        <ConfirmDialog
-          message="Delete this recording? This cannot be undone."
-          onConfirm={handleDeleteConfirm}
-          onCancel={handleDeleteCancel}
+      {confirmModal && (
+        <ConfirmModal
+          theme={theme}
+          title="Delete Recording"
+          message="This recording will be permanently removed. This action cannot be undone."
+          confirmLabel="Delete"
+          onConfirm={confirmDelete}
+          onCancel={() => setConfirmModal(null)}
         />
       )}
 
@@ -290,7 +302,11 @@ const Dashboard = () => {
           <div className="dash-empty">
             <FaExclamationTriangle className="dash-empty-icon" />
             <p>{error}</p>
-            <button className="dash-process-btn" style={{ marginTop: 8 }} onClick={() => fetchPage(0, true)}>
+            <button
+              className="dash-process-btn"
+              style={{ marginTop: 8 }}
+              onClick={() => fetchPage(0, true)}
+            >
               Retry
             </button>
           </div>
@@ -324,10 +340,16 @@ const Dashboard = () => {
                 >
                   <div className="dash-item-icon"><FaMusic /></div>
                   <div className="dash-item-info">
-                    <div className="dash-item-date">{formatDate(item.createdAt)} · {formatTime(item.createdAt)}</div>
-                    <div className="dash-item-preview">{item.speechText || "No transcript available"}</div>
+                    <div className="dash-item-date">
+                      {formatDate(item.createdAt)} · {formatTime(item.createdAt)}
+                    </div>
+                    <div className="dash-item-preview">
+                      {item.speechText || "No transcript available"}
+                    </div>
                     <div className="dash-item-tags">
-                      {item.stats?.language && <span className="dash-tag lang">{item.stats.language}</span>}
+                      {item.stats?.language && (
+                        <span className="dash-tag lang">{item.stats.language}</span>
+                      )}
                       {(item.enhancedAudioUrl || item.audioURL) && (
                         <span className="dash-tag">
                           <FaCheck style={{ fontSize: 9, marginRight: 3 }} />
@@ -351,12 +373,13 @@ const Dashboard = () => {
                   <button
                     className="dash-delete-btn"
                     title="Delete recording"
-                    onClick={(e) => handleDeleteClick(e, item._id)}
+                    onClick={(e) => handleDelete(e, item._id)}
                     disabled={deleting === item._id}
                   >
                     {deleting === item._id
                       ? <div className="dash-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
-                      : <FaTrash />}
+                      : <FaTrash />
+                    }
                   </button>
                 </div>
               ))}
@@ -369,7 +392,8 @@ const Dashboard = () => {
                 >
                   {loadingMore
                     ? <span className="dash-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
-                    : `Load more (${total - skip} remaining)`}
+                    : `Load more (${total - skip} remaining)`
+                  }
                 </button>
               )}
             </div>
@@ -377,12 +401,23 @@ const Dashboard = () => {
             {/* Detail */}
             <div className={`dash-detail ${!selected ? "dash-detail-empty" : ""}`}>
               {!selected ? (
-                <><FaChevronRight className="dash-empty-icon" style={{ fontSize: 24 }} /> Select a recording to view details</>
+                <>
+                  <FaChevronRight className="dash-empty-icon" style={{ fontSize: 24 }} />
+                  Select a recording to view details
+                </>
               ) : (
                 <>
                   <div className="dash-detail-header">
-                    <div className="dash-detail-title">{formatDate(selected.createdAt)} · {formatTime(selected.createdAt)}</div>
-                    <button className="dash-close-btn" onClick={() => setSelected(null)} title="Close">✕</button>
+                    <div className="dash-detail-title">
+                      {formatDate(selected.createdAt)} · {formatTime(selected.createdAt)}
+                    </div>
+                    <button
+                      className="dash-close-btn"
+                      onClick={() => setSelected(null)}
+                      title="Close"
+                    >
+                      ✕
+                    </button>
                   </div>
 
                   {(selected.enhancedAudioUrl || selected.audioURL) ? (
@@ -390,7 +425,11 @@ const Dashboard = () => {
                       <span className="dash-section-label">
                         {selected.enhancedAudioUrl ? "Enhanced Audio" : "Original Audio"}
                       </span>
-                      <audio controls src={selected.enhancedAudioUrl || selected.audioURL} className="dash-audio" />
+                      <audio
+                        controls
+                        src={selected.enhancedAudioUrl || selected.audioURL}
+                        className="dash-audio"
+                      />
                       <a
                         href={selected.enhancedAudioUrl || selected.audioURL}
                         download="audio.wav"
@@ -400,15 +439,19 @@ const Dashboard = () => {
                       </a>
                     </div>
                   ) : (
-                    <p style={{ fontSize: 13, fontStyle: "italic" }}>No audio available for this recording.</p>
+                    <p style={{ fontSize: 13, fontStyle: "italic" }}>
+                      No audio available for this recording.
+                    </p>
                   )}
 
                   {selected.stats && (
                     <div className="dash-stats-strip">
                       {Object.entries(selected.stats)
-                        .filter(([k]) => !HIDDEN_STAT_KEYS.includes(k))
+                        .filter(([k]) => !EXCLUDED_STAT_KEYS.includes(k))
                         .map(([k, v]) => {
-                          const display = k === "silences_removed_sec" ? formatSilence(v) : String(v);
+                          const display = k === "silences_removed_sec"
+                            ? formatSilence(v)
+                            : String(v);
                           return (
                             <span key={k} className="dash-strip-item">
                               {k.replace(/_/g, " ")}: <strong>{display}</strong>
