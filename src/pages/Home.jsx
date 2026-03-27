@@ -2,147 +2,16 @@ import React, { useState, useRef } from "react";
 import "./Home.css";
 import heroImg from "../assets/loginArt1.png";
 import logo from "../assets/clearwave.png";
-import guidePhoto from "./assets/guide.png";
 // import team1 from "./assets/Navya.jpeg";
 // import team2 from "./assets/Divya.jpeg";
 // import team3 from "./assets/Sriram.jpeg";
 // import team4 from "./assets/Sriram.jpeg";
-import { FaLinkedin, FaUpload, FaDownload, FaHeadphones, FaFileAlt, FaFolder, FaGlobe, FaLink, FaEnvelope, FaPlayCircle } from "react-icons/fa";
-import { FaGraduationCap, FaUniversity, FaBriefcase, FaMicrophone, FaBrain } from "react-icons/fa";
+import { FaUpload, FaDownload, FaHeadphones, FaFileAlt, FaFolder, FaGlobe, FaLink, FaEnvelope, FaPlayCircle } from "react-icons/fa";
+import { FaMicrophone, FaBrain } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 
 
-const GUIDE = {
-  name:        "Asst. Prof. Kalyan Ram",
-  role:        "Project Guide & Mentor",
-  initials:    "KR",
-  linkedin:    "https://www.linkedin.com/in/mylavarapu-kalyan-ram-3a51591b0/",
-  photo:       guidePhoto,
-  degree:      "M.Tech (Ph.D)",
-  college:     "Aditya Engineering College",
-  designation: "Assistant Professor, Dept. of CSE",
-};
-
-const TEAM = [
-  { name: "Navya Sai",      role: "Frontend Dev",              initials: "NS", linkedin: "https://www.linkedin.com/in/thota-navya-sai-6801a9288/",    photo: null, degree: "B.Tech CSE", college: "Aditya Engineering College", designation: "Frontend Developer" },
-  { name: "Divya Naga Sri", role: "Full Stack Dev",            initials: "DN", linkedin: "https://www.linkedin.com/in/divya-naga-sri-k-549b35287/",    photo: null, degree: "B.Tech CSE", college: "Aditya Engineering College", designation: "Full Stack Developer" },
-  { name: "Sai Ganesh",     role: "AI Engineer",               initials: "SG", linkedin: "https://www.linkedin.com/in/devara-sai-ganesh/",             photo: null, degree: "B.Tech CSE", college: "Aditya Engineering College", designation: "AI & ML Engineer" },
-  { name: "Sriram Sai",     role: "AI Engineer / Backend Dev", initials: "SS", linkedin: "https://www.linkedin.com/in/sriram-sai-laggisetti/",         photo: null , degree: "B.Tech CSE", college: "Aditya Engineering College", designation: "AI Engineer & Backend Developer" },
-];
-
-const GRADIENTS = [
-  "linear-gradient(135deg,#378ADD,#6366f1)",
-  "linear-gradient(135deg,#7F77DD,#a855f7)",
-  "linear-gradient(135deg,#1D9E75,#0ea5e9)",
-  "linear-gradient(135deg,#EF9F27,#f97316)",
-  "linear-gradient(135deg,#D85A30,#ef4444)",
-];
-
-/* ── Avatar circle ── */
-function Avatar({ person, index, size = "md" }) {
-  return (
-    <div
-      className={`tc-avatar tc-avatar--${size}`}
-      style={{ background: GRADIENTS[index % GRADIENTS.length] }}
-    >
-      {person.photo
-        ? <img src={person.photo} alt={person.name} />
-        : <span>{person.initials}</span>}
-    </div>
-  );
-}
-
-/* ── Single person card ── */
-function PersonCard({ person, index, isGuide = false, isHovered = false, anyHovered = false }) {
-  return (
-    <a
-      href={person.linkedin}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={[
-        "tc-person-card",
-        isGuide    ? "tc-person-card--guide"   : "",
-        isHovered  ? "tc-person-card--expanded" : "",
-        anyHovered && !isHovered ? "tc-person-card--collapsed" : "",
-      ].join(" ")}
-    >
-      <div className="tc-card-shimmer" style={{ background: GRADIENTS[index % GRADIENTS.length] }} />
-
-      {/* Avatar — always visible */}
-      <Avatar person={person} index={index} size={isGuide ? "lg" : "md"} />
-
-      {/* Name + role — always visible */}
-      <div className="tc-person-name-block">
-        <p className="tc-person-name">{person.name}</p>
-        <p className="tc-person-role">{person.role}</p>
-      </div>
-
-      {/* Details — slide in from right on expand */}
-      <div className={`tc-details-panel ${isHovered ? "tc-details-panel--show" : ""}`}>
-        <div className="tc-detail-row"><FaGraduationCap className="tc-detail-icon" /><span>{person.degree}</span></div>
-        <div className="tc-detail-row"><FaUniversity    className="tc-detail-icon" /><span>{person.college}</span></div>
-        <div className="tc-detail-row"><FaBriefcase     className="tc-detail-icon" /><span>{person.designation}</span></div>
-        <FaLinkedin className="tc-li-icon" />
-      </div>
-
-      {isGuide && <span className="tc-guide-badge">Guide</span>}
-    </a>
-  );
-}
-
-/* ── Full team card ── */
-function TeamCard() {
-  const [hoveredId, setHoveredId] = useState(null);
-  const anyHovered = hoveredId !== null;
-
-  return (
-    <div className="tc-wrapper">
-
-      {/* Guide — full width accordion row */}
-      <div
-        className="tc-guide-row"
-        onMouseEnter={() => setHoveredId("guide")}
-        onMouseLeave={() => setHoveredId(null)}
-      >
-        <PersonCard
-          person={GUIDE}
-          index={0}
-          isGuide
-          isHovered={hoveredId === "guide"}
-          anyHovered={anyHovered}
-        />
-      </div>
-
-      {/* Divider */}
-      <div className="tc-section-divider"><span>Team Members</span></div>
-
-      {/* 4 members — accordion flex row */}
-      <div className="tc-members-grid">
-        {TEAM.map((tm, i) => (
-          <div
-            key={tm.name}
-            className={[
-              "tc-member-slot",
-              hoveredId === i           ? "tc-member-slot--expanded"  : "",
-              anyHovered && hoveredId !== i ? "tc-member-slot--collapsed" : "",
-            ].join(" ")}
-            onMouseEnter={() => setHoveredId(i)}
-            onMouseLeave={() => setHoveredId(null)}
-          >
-            <PersonCard
-              person={tm}
-              index={i + 1}
-              isHovered={hoveredId === i}
-              anyHovered={anyHovered}
-            />
-          </div>
-        ))}
-      </div>
-
-    </div>
-  );
-}
 function AudioDemoCard({ label, badgeClass, badgeText, title, desc, src, accentColor }) {
   const audioRef = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -153,12 +22,13 @@ function AudioDemoCard({ label, badgeClass, badgeText, title, desc, src, accentC
   const togglePlay = () => {
     const audio = audioRef.current;
     if (!audio) return;
-    if (playing) {
-      audio.pause();
-    } else {
+    if (audio.paused) {
       audio.play();
+      setPlaying(true);
+    } else {
+      audio.pause();
+      setPlaying(false);
     }
-    setPlaying(!playing);
   };
 
   const handleTimeUpdate = () => {
@@ -308,8 +178,8 @@ const Home = () => {
             accentColor="#ef4444"
           />
 
-        {/* VS divider */}
-          <div className="audio-demo-vs">VS</div>
+        {/* divider */}
+          <div className="audio-demo-vs">  </div>
 
           {/* Clean Audio Card */}
             <AudioDemoCard
@@ -356,13 +226,6 @@ const Home = () => {
           <p>Results are fast and efficient. Audio enhancement and speech-to-text conversion complete within seconds, ideal for online meetings, virtual classes, interviews, and podcasts.</p>
           <p>ClearWave AI focuses on user safety and reliability. All uploaded files are handled securely with strong data protection.</p>
         </div>
-      </section>
-
-      {/* TEAM */}
-      <section className="team-section" id="team">
-        <h2 className="section-title">Meet Our Team</h2>
-        
-        <TeamCard />
       </section>
 
       {/* FOOTER */}
