@@ -54,6 +54,24 @@
 .dash-wrapper.light .dash-toast--success { background: #f0fdf4; border: 1px solid rgba(74,222,128,0.4); color: #16a34a; }
 .dash-wrapper.light .dash-toast--error   { background: #fef2f2; border: 1px solid rgba(248,113,113,0.4); color: #dc2626; }
 
+/* ── Light Modal ── */
+.dash-modal.light {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.12);
+}
+.dash-modal.light .dash-modal-title   { color: #0f172a; }
+.dash-modal.light .dash-modal-message { color: #475569; }
+.dash-modal.light .dash-modal-btn--cancel {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+.dash-modal.light .dash-modal-btn--cancel:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
 /* ══════════════════════════════════════════
    DARK MODE
 ══════════════════════════════════════════ */
@@ -98,6 +116,24 @@
 .dash-wrapper.dark .dash-detail-empty { color: #1e293b; }
 .dash-wrapper.dark .dash-toast--success { background: #0f1f18; border: 1px solid rgba(74,222,128,0.3); color: #4ade80; }
 .dash-wrapper.dark .dash-toast--error   { background: #1f0f0f; border: 1px solid rgba(248,113,113,0.3); color: #f87171; }
+
+/* ── Dark Modal ── */
+.dash-modal.dark {
+  background: #0f172a;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+}
+.dash-modal.dark .dash-modal-title   { color: #f1f5f9; }
+.dash-modal.dark .dash-modal-message { color: #94a3b8; }
+.dash-modal.dark .dash-modal-btn--cancel {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.1);
+  color: #94a3b8;
+}
+.dash-modal.dark .dash-modal-btn--cancel:hover {
+  background: rgba(255,255,255,0.1);
+  color: #e2e8f0;
+}
 
 /* ══════════════════════════════════════════
    LAYOUT
@@ -194,6 +230,108 @@
 .dash-toast button { background: none; border: none; color: inherit; cursor: pointer; font-size: 13px; opacity: 0.6; padding: 0; }
 .dash-toast button:hover { opacity: 1; }
 @keyframes toastIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ══════════════════════════════════════════
+   CUSTOM CONFIRM MODAL
+══════════════════════════════════════════ */
+.dash-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: overlayIn 0.2s ease;
+}
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.dash-modal {
+  width: 100%;
+  max-width: 380px;
+  border-radius: 16px;
+  padding: 28px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  animation: modalIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.88) translateY(12px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
+
+/* Icon badge */
+.dash-modal-icon-wrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+.dash-modal-icon--danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+.dash-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  font-family: 'Poppins', sans-serif;
+  letter-spacing: -0.3px;
+}
+
+.dash-modal-message {
+  font-size: 13px;
+  line-height: 1.6;
+  font-family: 'Poppins', sans-serif;
+  max-width: 300px;
+  margin-bottom: 4px;
+}
+
+.dash-modal-actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.dash-modal-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+}
+
+.dash-modal-btn--cancel {
+  /* themed per light/dark above */
+}
+
+.dash-modal-btn--danger {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #fff;
+}
+.dash-modal-btn--danger:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+}
 
 /* ── RESPONSIVE ── */
 @media (max-width: 900px) {
