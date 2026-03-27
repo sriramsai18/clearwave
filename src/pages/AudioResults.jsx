@@ -46,7 +46,7 @@ function AudioResults() {
         <div className="studio-layout">
           <div className="studio-card" style={{ textAlign: "center", padding: "40px 24px" }}>
             <p style={{ color: "#aaa", marginBottom: 20 }}>No results to display.</p>
-            <button className="studio-btn" onClick={() => navigate("/studio")}>
+            <button className="studio-btn" onClick={() => navigate("/audio-studio")}>
               <FaArrowLeft style={{ marginRight: 8 }} /> Go to Audio Studio
             </button>
           </div>
